@@ -91,7 +91,9 @@ Unknown fields are ignored and logged. Null optional fields are ignored. Malform
 | `MQTT_CA_FILE`, `MQTT_CERT_FILE`, `MQTT_KEY_FILE` | unset | TLS files. |
 | `MQTT_TLS_INSECURE` | `false` | Disable TLS verification. |
 | `MDNS_ENABLED` | `true` | Enable zeroconf advertisement. |
-| `MDNS_INTERFACE`, `MDNS_HOSTNAME`, `MDNS_INSTANCE_NAME` | unset | Optional mDNS overrides. |
+| `MDNS_ADDRESS` | unset | IPv4 address advertised to clients; auto-detected when unset. |
+| `MDNS_INTERFACE` | unset | Interface name or IPv4 interface address used for mDNS multicast. |
+| `MDNS_HOSTNAME`, `MDNS_INSTANCE_NAME` | unset | Optional mDNS hostname and service-name overrides. |
 | `DISCOVERY_REQUIRE_MEASUREMENT` | `true` | Wait for first valid measurement before mDNS registration. |
 | `REQUIRED_FIELDS` | `active_power_w` | Comma-separated required supported fields. |
 | `STALE_WARNING_SECONDS` | `120` | Diagnostic stale threshold only. |
@@ -106,11 +108,19 @@ cp example.env .env
 docker compose up --build -d
 ```
 
-The Compose file uses Linux host networking so mDNS multicast and port 80 behave like a LAN device. Host networking has security and port-conflict implications and does not work identically on Docker Desktop, Windows, or macOS. Debian 12/Linux is the primary deployment target. The container runs as a non-root user and uses `NET_BIND_SERVICE` for port 80.
+The Compose file uses Linux host networking so mDNS multicast and port 80 behave like a LAN device. Host networking has security and port-conflict implications and does not work identically on Docker Desktop, Windows, or macOS. Debian 12 is supported through Docker using the included Python 3.12 image. The container runs as a non-root user and uses `NET_BIND_SERVICE` for port 80.
 
-## Native Debian installation
+The service automatically selects a non-loopback LAN IPv4 address. On a host with multiple interfaces, set `MDNS_ADDRESS` in `.env` to the LAN address clients should use and set `MDNS_INTERFACE` to the corresponding interface name (for example `eth0`) or IPv4 interface address. Host networking is required for these values to refer to the host network rather than an isolated container network.
 
-See `deploy/systemd/`. Create a dedicated `virtual-smart-meter` user, install the Python package in `/opt/virtual-smart-meter-ecoflow/.venv`, copy the environment file to `/etc/virtual-smart-meter-ecoflow.env`, and install the unit. The unit uses `StateDirectory`, `Restart=on-failure`, hardening options, and only `CAP_NET_BIND_SERVICE` for port 80.
+## Native Debian 13 installation
+
+Debian 13 is the recommended platform for native installation. The project requires Python 3.12 or newer, and Debian 13 provides Python 3.13.
+
+See `deploy/systemd/`. Create a dedicated `virtual-smart-meter` user, install the Python package in `/opt/virtual-smart-meter-ecoflow/.venv` with Python 3.13, copy the environment file to `/etc/virtual-smart-meter-ecoflow.env`, and install the unit. The unit uses `StateDirectory`, `Restart=on-failure`, hardening options, and only `CAP_NET_BIND_SERVICE` for port 80.
+
+For a multi-homed native host or LXC, set `MDNS_ADDRESS` in `/etc/virtual-smart-meter-ecoflow.env` to its client-reachable LAN IPv4 address. Set `MDNS_INTERFACE` to the matching interface name or IPv4 interface address to restrict multicast traffic to that interface.
+
+Native Debian 12 is not currently supported because its standard Python version is 3.11. Use the Docker deployment on Debian 12. Native Debian 12 support must not be assumed unless Python 3.11 support is implemented and covered by CI.
 
 ## Home Assistant example
 

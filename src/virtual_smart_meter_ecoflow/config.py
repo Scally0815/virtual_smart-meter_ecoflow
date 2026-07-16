@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Literal
 
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     state_dir: Path = Path("/data")
 
     mdns_enabled: bool = True
+    mdns_address: IPv4Address | None = None
     mdns_interface: str | None = None
     mdns_hostname: str | None = None
     mdns_instance_name: str | None = None
@@ -63,6 +65,13 @@ class Settings(BaseSettings):
         if len(normalized) != 12 or any(c not in "0123456789abcdef" for c in normalized):
             raise ValueError("SERIAL must be exactly 12 hexadecimal characters")
         return normalized
+
+    @field_validator("mdns_address")
+    @classmethod
+    def validate_mdns_address(cls, value: IPv4Address | None) -> IPv4Address | None:
+        if value is not None and (value.is_loopback or value.is_unspecified):
+            raise ValueError("MDNS_ADDRESS must not be loopback or 0.0.0.0")
+        return value
 
     @property
     def required_field_set(self) -> set[str]:

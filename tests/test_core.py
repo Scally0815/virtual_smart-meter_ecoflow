@@ -5,10 +5,16 @@ from pathlib import Path
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from pydantic import ValidationError
+from zeroconf import IPVersion
 
 from virtual_smart_meter_ecoflow.api import create_http_app
 from virtual_smart_meter_ecoflow.config import Settings, load_or_create_serial, redact_settings
-from virtual_smart_meter_ecoflow.mdns import instance_name, txt_records
+from virtual_smart_meter_ecoflow.mdns import (
+    MdnsAdvertiser,
+    automatic_address,
+    instance_name,
+    txt_records,
+)
 from virtual_smart_meter_ecoflow.models import (
     MeasurementValidationError,
     validate_measurement_payload,
@@ -122,6 +128,79 @@ def test_mdns_records(tmp_path: Path) -> None:
     s = settings(tmp_path)
     assert instance_name(s) == "p1meter-334455"
     assert txt_records(s)["serial"] == "001122334455"
+
+
+@pytest.mark.asyncio
+async def test_explicit_mdns_address_and_configurable_port(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    created: list[object] = []
+
+    class FakeZeroconf:
+        def __init__(self, **kwargs: object) -> None:
+            created.append(kwargs)
+
+        def register_service(self, info: object) -> None:
+            created.append(info)
+
+        def unregister_service(self, info: object) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr("virtual_smart_meter_ecoflow.mdns.Zeroconf", FakeZeroconf)
+    s = Settings(
+        state_dir=tmp_path,
+        serial="001122334455",
+        http_port=8123,
+        mdns_address="192.168.10.25",
+        mdns_interface="192.168.10.25",
+    )
+    advertiser = MdnsAdvertiser(s, AppState())
+    await advertiser.register()
+
+    assert advertiser.info is not None
+    assert advertiser.info.parsed_addresses() == ["192.168.10.25"]
+    assert advertiser.info.port == 8123
+    assert created[0] == {
+        "interfaces": ["192.168.10.25"],
+        "ip_version": IPVersion.V4Only,
+    }
+
+
+def test_automatic_mdns_address_skips_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSocket:
+        def __enter__(self) -> FakeSocket:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            pass
+
+        def connect(self, address: object) -> None:
+            pass
+
+        def getsockname(self) -> tuple[str, int]:
+            return ("127.0.0.1", 12345)
+
+    monkeypatch.setattr("virtual_smart_meter_ecoflow.mdns.socket.socket", lambda *a: FakeSocket())
+    monkeypatch.setattr(
+        "virtual_smart_meter_ecoflow.mdns.socket.getaddrinfo",
+        lambda *a: [
+            (2, 1, 6, "", ("127.0.0.1", 0)),
+            (2, 1, 6, "", ("169.254.10.20", 0)),
+            (2, 1, 6, "", ("192.168.10.30", 0)),
+        ],
+    )
+    assert str(automatic_address()) == "192.168.10.30"
+
+
+@pytest.mark.parametrize("address", ["127.0.0.1", "0.0.0.0", "not-an-address", "::1"])
+def test_invalid_mdns_address_has_clear_configuration_error(
+    tmp_path: Path, address: str
+) -> None:
+    with pytest.raises(ValidationError, match="mdns_address|MDNS_ADDRESS"):
+        Settings(state_dir=tmp_path, mdns_address=address)
 
 
 def test_secret_redaction(tmp_path: Path) -> None:
