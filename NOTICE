@@ -1,0 +1,5 @@
+virtual_smart-meter_ecoflow
+
+This product includes original source code for an experimental HomeWizard HWE-P1 compatible local API and mDNS emulator.
+
+Third-party dependencies are distributed under their respective licenses, including aiohttp, aiomqtt, pydantic, pydantic-settings, python-zeroconf, pytest, ruff, and mypy.

@@ -1,0 +1,25 @@
+[Unit]
+Description=Virtual HomeWizard HWE-P1 smart meter emulator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=virtual-smart-meter
+Group=virtual-smart-meter
+EnvironmentFile=/etc/virtual-smart-meter-ecoflow.env
+StateDirectory=virtual-smart-meter-ecoflow
+Environment=STATE_DIR=/var/lib/virtual-smart-meter-ecoflow
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/virtual-smart-meter-ecoflow
+ExecStart=/opt/virtual-smart-meter-ecoflow/.venv/bin/virtual-smart-meter-ecoflow
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

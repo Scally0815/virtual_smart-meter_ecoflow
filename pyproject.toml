@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.25,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "virtual-smart-meter-ecoflow"
+version = "0.1.0"
+description = "Experimental HomeWizard HWE-P1 local API and mDNS emulator backed by MQTT"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "aiohttp>=3.9,<4",
+  "aiomqtt>=2.3,<3",
+  "pydantic-settings>=2.3,<3",
+  "pydantic>=2.7,<3",
+  "zeroconf>=0.132,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<9",
+  "pytest-asyncio>=0.23,<1",
+  "ruff>=0.5,<1",
+  "mypy>=1.10,<2",
+]
+
+[project.scripts]
+virtual-smart-meter-ecoflow = "virtual_smart_meter_ecoflow.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/virtual_smart_meter_ecoflow"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+disable_error_code = ["misc", "untyped-decorator", "no-any-return"]
+packages = ["virtual_smart_meter_ecoflow"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
